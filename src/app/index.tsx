@@ -1,98 +1,102 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Image } from "expo-image";
+import { router } from "expo-router";
+import { useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { colors, DIFFICULTIES, PUZZLE_IMAGES } from "@/constants/puzzles";
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
+export default function Index() {
+  const [imageId, setImageId] = useState(PUZZLE_IMAGES[0].id);
+  const [size, setSize] = useState<number>(DIFFICULTIES[0].size);
+
+  const start = () => {
+    router.push({ pathname: "/puzzle", params: { id: imageId, size: String(size) } });
+  };
+
   return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <Text style={styles.heading}>Choose an image</Text>
+      <View style={styles.grid}>
+        {PUZZLE_IMAGES.map((image) => {
+          const selected = image.id === imageId;
+          return (
+            <Pressable
+              key={image.id}
+              accessibilityRole="button"
+              accessibilityLabel={image.title}
+              accessibilityState={{ selected }}
+              onPress={() => setImageId(image.id)}
+              style={[styles.thumb, selected && styles.thumbSelected]}
+            >
+              <Image source={{ uri: image.uri }} style={styles.thumbImage} contentFit="cover" transition={200} />
+              <Text style={styles.thumbLabel}>{image.title}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
 
-export default function HomeScreen() {
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
+      <Text style={styles.heading}>Difficulty</Text>
+      <View style={styles.row}>
+        {DIFFICULTIES.map((d) => {
+          const selected = d.size === size;
+          return (
+            <Pressable
+              key={d.size}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              onPress={() => setSize(d.size)}
+              style={[styles.chip, selected && styles.chipSelected]}
+            >
+              <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
+                {d.label} · {d.size * d.size}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+      <Pressable accessibilityRole="button" onPress={start} style={styles.startButton}>
+        <Text style={styles.startText}>Start puzzle</Text>
+      </Pressable>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
+  screen: { flex: 1, backgroundColor: colors.background },
+  content: { padding: 16, gap: 16, maxWidth: 720, width: "100%", alignSelf: "center" },
+  heading: { color: colors.text, fontSize: 20, fontWeight: "700" },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  thumb: {
+    width: 150,
+    flexGrow: 1,
+    borderRadius: 12,
+    overflow: "hidden",
+    borderWidth: 3,
+    borderColor: "transparent",
+    backgroundColor: colors.surface,
   },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
+  thumbSelected: { borderColor: colors.accent },
+  thumbImage: { width: "100%", aspectRatio: 1 },
+  thumbLabel: { color: colors.text, padding: 8, fontWeight: "600" },
+  row: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  chip: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
+  chipSelected: { backgroundColor: colors.accent, borderColor: colors.accent },
+  chipText: { color: colors.text, fontWeight: "600" },
+  chipTextSelected: { color: colors.background },
+  startButton: {
+    marginTop: 8,
+    backgroundColor: colors.accent,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
   },
-  title: {
-    textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
-  },
+  startText: { color: colors.background, fontSize: 18, fontWeight: "700" },
 });
