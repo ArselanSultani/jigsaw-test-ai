@@ -4,10 +4,15 @@ import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { colors, DIFFICULTIES, PUZZLE_IMAGES } from "@/constants/puzzles";
+import { usePuzzleProgress } from "@/components/puzzle-progress-provider";
+import { puzzleKey } from "@/utils/puzzle-progress";
 
 export default function Index() {
   const [imageId, setImageId] = useState(PUZZLE_IMAGES[0].id);
   const [size, setSize] = useState<number>(DIFFICULTIES[0].size);
+  const { puzzles } = usePuzzleProgress();
+  const inProgress = Object.values(puzzles).filter((puzzle) => puzzle.finishedAt === null);
+  const selectedSave = puzzles[puzzleKey(imageId, size)];
 
   const start = () => {
     router.push({ pathname: "/puzzle", params: { id: imageId, size: String(size) } });
@@ -15,6 +20,30 @@ export default function Index() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      {inProgress.length > 0 && (
+        <>
+          <Text style={styles.heading}>Continue a puzzle</Text>
+          {inProgress.map((puzzle) => (
+            <Pressable
+              key={puzzleKey(puzzle.imageId, puzzle.size)}
+              accessibilityRole="button"
+              onPress={() => router.push({
+                pathname: "/puzzle",
+                params: { id: puzzle.imageId, size: String(puzzle.size) },
+              })}
+              style={styles.resumeCard}
+            >
+              <Text style={styles.thumbLabel}>
+                {PUZZLE_IMAGES.find((image) => image.id === puzzle.imageId)?.title} ·{" "}
+                {DIFFICULTIES.find((level) => level.size === puzzle.size)?.label}
+              </Text>
+              <Text style={styles.resumeText}>
+                {puzzle.snapshot?.pieces.filter((piece) => piece.placed).length ?? 0}/{puzzle.size * puzzle.size} placed · Continue
+              </Text>
+            </Pressable>
+          ))}
+        </>
+      )}
       <Text style={styles.heading}>Choose an image</Text>
       <View style={styles.grid}>
         {PUZZLE_IMAGES.map((image) => {
@@ -56,7 +85,7 @@ export default function Index() {
       </View>
 
       <Pressable accessibilityRole="button" onPress={start} style={styles.startButton}>
-        <Text style={styles.startText}>Start puzzle</Text>
+        <Text style={styles.startText}>{selectedSave ? "Continue puzzle" : "Start puzzle"}</Text>
       </Pressable>
     </ScrollView>
   );
@@ -66,6 +95,8 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   content: { padding: 16, gap: 16, maxWidth: 720, width: "100%", alignSelf: "center" },
   heading: { color: colors.text, fontSize: 20, fontWeight: "700" },
+  resumeCard: { backgroundColor: colors.surface, borderRadius: 12, padding: 8, borderWidth: 1, borderColor: colors.border },
+  resumeText: { color: colors.accent, padding: 8 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   thumb: {
     width: 150,

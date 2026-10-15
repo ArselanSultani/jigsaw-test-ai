@@ -1,10 +1,13 @@
 import { Image } from "expo-image";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { type LayoutChangeEvent, StyleSheet, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 
 import { PuzzlePiece } from "@/components/puzzle-piece";
 import { colors } from "@/constants/puzzles";
+import { createPuzzleLayout } from "@/utils/puzzle-layout";
+import { type Bounds, type PieceGeometry, type PieceState, resizeGroups } from "@/utils/piece-groups";
+import { type SavedPieces } from "@/utils/puzzle-progress";
 
 type Props = {
   imageUri: string;
@@ -12,75 +15,29 @@ type Props = {
   seed: number;
   placed: boolean[];
   showPreview: boolean;
-  onDrop: (index: number, placed: boolean) => void;
+  edgesOnly: boolean;
+  onDrop: (snapshot: SavedPieces) => void;
+  initialSnapshot: SavedPieces | null;
 };
 
-const PADDING = 16;
-
-function seededRandom(seed: number) {
-  let state = seed % 2147483647;
-  if (state <= 0) state += 2147483646;
-  return () => {
-    state = (state * 16807) % 2147483647;
-    return (state - 1) / 2147483646;
-  };
-}
-
-export function PuzzleBoard({ imageUri, size, seed, placed, showPreview, onDrop }: Props) {
+export function PuzzleBoard({ imageUri, size, seed, placed, showPreview, edgesOnly, onDrop, initialSnapshot }: Props) {
   const [area, setArea] = useState({ width: 0, height: 0 });
-  const zCounter = useSharedValue(size * size + 1);
+  const [savedPieces, setSavedPieces] = useState<SavedPieces | null>(initialSnapshot);
+
+  const handleDrop = useCallback(
+    (next: PieceState[], pieceSize: number) => {
+      setSavedPieces({ pieces: next, pieceSize });
+      onDrop({ pieces: next, pieceSize });
+    },
+    [onDrop],
+  );
 
   const onLayout = (e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
     setArea({ width: Math.floor(width), height: Math.floor(height) });
   };
 
-  const layout = useMemo(() => {
-    const { width, height } = area;
-    if (width === 0 || height === 0) return null;
-
-    const isWide = width >= 720 && width > height;
-    const rawBoard = isWide
-      ? Math.min(height - PADDING * 2, (width - PADDING * 3) * 0.55, 640)
-      : Math.min(width - PADDING * 2, (height - PADDING * 3) * 0.55, 640);
-    const pieceSize = Math.floor(rawBoard / size);
-    const boardSize = pieceSize * size;
-
-    const board = isWide
-      ? { x: PADDING, y: Math.floor((height - boardSize) / 2) }
-      : { x: Math.floor((width - boardSize) / 2), y: PADDING };
-    const tray = isWide
-      ? {
-          x: board.x + boardSize + PADDING,
-          y: PADDING,
-          width: width - boardSize - PADDING * 3,
-          height: height - PADDING * 2,
-        }
-      : {
-          x: PADDING,
-          y: board.y + boardSize + PADDING,
-          width: width - PADDING * 2,
-          height: height - boardSize - PADDING * 3,
-        };
-
-    const random = seededRandom(seed);
-    const pieces = Array.from({ length: size * size }, (_, index) => {
-      const row = Math.floor(index / size);
-      const col = index % size;
-      return {
-        index,
-        row,
-        col,
-        target: { x: board.x + col * pieceSize, y: board.y + row * pieceSize },
-        start: {
-          x: tray.x + random() * Math.max(0, tray.width - pieceSize),
-          y: tray.y + random() * Math.max(0, tray.height - pieceSize),
-        },
-      };
-    });
-
-    return { board, boardSize, pieceSize, pieces };
-  }, [area, size, seed]);
+  const layout = useMemo(() => createPuzzleLayout(area, size, seed), [area, size, seed]);
 
   return (
     <View style={styles.area} onLayout={onLayout}>
@@ -96,23 +53,74 @@ export function PuzzleBoard({ imageUri, size, seed, placed, showPreview, onDrop 
               <Image source={{ uri: imageUri }} style={[StyleSheet.absoluteFill, styles.preview]} contentFit="cover" />
             )}
           </View>
-          {layout.pieces.map((piece) => (
-            <PuzzlePiece
-              key={`${seed}-${area.width}x${area.height}-${piece.index}`}
-              {...piece}
-              pieceSize={layout.pieceSize}
-              boardSize={layout.boardSize}
-              imageUri={imageUri}
-              bounds={area}
-              placed={placed[piece.index]}
-              zCounter={zCounter}
-              onDrop={onDrop}
-            />
-          ))}
+          <PuzzlePieces
+            key={`${seed}-${area.width}x${area.height}`}
+            geometry={layout.pieces}
+            pieceSize={layout.pieceSize}
+            boardSize={layout.boardSize}
+            imageUri={imageUri}
+            bounds={area}
+            placed={placed}
+            edgesOnly={edgesOnly}
+            onDrop={handleDrop}
+            savedPieces={savedPieces}
+          />
         </>
       )}
     </View>
   );
+}
+
+function PuzzlePieces({
+  geometry,
+  placed,
+  savedPieces,
+  onDrop,
+  ...props
+}: {
+  geometry: PieceGeometry[];
+  placed: boolean[];
+  pieceSize: number;
+  boardSize: number;
+  imageUri: string;
+  bounds: Bounds;
+  edgesOnly: boolean;
+  onDrop: (pieces: PieceState[], pieceSize: number) => void;
+  savedPieces: SavedPieces | null;
+}) {
+  const [initial] = useState(() =>
+    savedPieces
+      ? resizeGroups(savedPieces.pieces, savedPieces.pieceSize, geometry, props.bounds)
+      : geometry.map((piece, i) => ({
+          ...(placed[i] ? piece.target : piece.start),
+          group: i,
+          placed: placed[i],
+          zIndex: placed[i] ? 0 : i + 1,
+        })),
+  );
+  const pieces = useSharedValue<PieceState[]>(initial);
+  const activeDrag = useSharedValue(-1);
+  const zCounter = useSharedValue(Math.max(...initial.map((piece) => piece.zIndex)) + 1);
+  const { pieceSize } = props;
+  const handleDrop = useCallback(
+    (next: PieceState[]) => {
+      onDrop(next, pieceSize);
+    },
+    [onDrop, pieceSize],
+  );
+  return geometry.map((piece) => (
+    <PuzzlePiece
+      key={piece.index}
+      {...props}
+      index={piece.index}
+      geometry={geometry}
+      placed={placed[piece.index]}
+      pieces={pieces}
+      activeDrag={activeDrag}
+      zCounter={zCounter}
+      onDrop={handleDrop}
+    />
+  ));
 }
 
 const styles = StyleSheet.create({

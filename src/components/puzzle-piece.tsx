@@ -1,136 +1,147 @@
-import { Image } from "expo-image";
-import { memo, useMemo } from "react";
+import { memo, useId, useMemo } from "react";
 import { StyleSheet, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Animated, {
-  type SharedValue,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withTiming,
-} from "react-native-reanimated";
+import Animated, { type SharedValue, useAnimatedStyle, useSharedValue } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
+import Svg, { ClipPath, Defs, Image as SvgImage, Path } from "react-native-svg";
 
-type Point = { x: number; y: number };
+import {
+  type Bounds,
+  type PieceGeometry,
+  type PieceState,
+  type Point,
+  isGroupVisible,
+  moveGroup,
+  snapGroup,
+} from "@/utils/piece-groups";
 
 type Props = {
   index: number;
-  row: number;
-  col: number;
   pieceSize: number;
   boardSize: number;
   imageUri: string;
-  start: Point;
-  target: Point;
-  bounds: { width: number; height: number };
+  geometry: PieceGeometry[];
+  bounds: Bounds;
   placed: boolean;
+  edgesOnly: boolean;
+  pieces: SharedValue<PieceState[]>;
+  activeDrag: SharedValue<number>;
   zCounter: SharedValue<number>;
-  onDrop: (index: number, placed: boolean) => void;
+  onDrop: (pieces: PieceState[]) => void;
 };
 
 export const PuzzlePiece = memo(function PuzzlePiece({
   index,
-  row,
-  col,
   pieceSize,
   boardSize,
   imageUri,
-  start,
-  target,
+  geometry,
   bounds,
   placed,
+  edgesOnly,
+  pieces,
+  activeDrag,
   zCounter,
   onDrop,
 }: Props) {
-  const x = useSharedValue(placed ? target.x : start.x);
-  const y = useSharedValue(placed ? target.y : start.y);
-  const originX = useSharedValue(0);
-  const originY = useSharedValue(0);
-  const scale = useSharedValue(1);
-  const zIndex = useSharedValue(placed ? 0 : index + 1);
-  const locked = useSharedValue(placed);
-
+  const { row, col, shape } = geometry[index];
+  const clipId = `piece-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
+  const origin = useSharedValue<PieceState[] | null>(null);
+  const pointerDown = useSharedValue<Point>({ x: 0, y: 0 });
   const snapDistance = pieceSize * 0.3;
-  const maxX = Math.max(0, bounds.width - pieceSize);
-  const maxY = Math.max(0, bounds.height - pieceSize);
 
   const pan = useMemo(
     () =>
       Gesture.Pan()
         .enabled(!placed)
-        .onBegin(() => {
-          if (locked.value) return;
+        .onBegin((event) => {
+          pointerDown.set({ x: event.absoluteX, y: event.absoluteY });
+        })
+        .onStart(() => {
+          const current = pieces.get();
+          if (
+            activeDrag.get() !== -1 ||
+            current[index].placed ||
+            !isGroupVisible(current, index, geometry, edgesOnly)
+          ) return;
+          activeDrag.set(index);
           const nextZ = zCounter.get() + 1;
           zCounter.set(nextZ);
-          zIndex.value = nextZ;
-          originX.value = x.value;
-          originY.value = y.value;
-          scale.value = withTiming(1.06, { duration: 120 });
+          const group = current[index].group;
+          const raised = current.map((piece) => (piece.group === group ? { ...piece, zIndex: nextZ } : piece));
+          origin.set(raised);
+          pieces.set(raised);
         })
-        .onUpdate((e) => {
-          if (locked.value) return;
-          x.value = Math.min(Math.max(originX.value + e.translationX, 0), maxX);
-          y.value = Math.min(Math.max(originY.value + e.translationY, 0), maxY);
+        .onUpdate((event) => {
+          const start = origin.get();
+          if (activeDrag.get() !== index || !start) return;
+          const pointer = pointerDown.get();
+          pieces.set(moveGroup(start, index, event.absoluteX - pointer.x, event.absoluteY - pointer.y, geometry, bounds));
         })
-        .onFinalize(() => {
-          if (locked.value) return;
-          scale.value = withTiming(1, { duration: 120 });
-          const isClose = Math.abs(x.value - target.x) < snapDistance && Math.abs(y.value - target.y) < snapDistance;
-          if (isClose) {
-            locked.value = true;
-            zIndex.value = 0;
-            x.value = withSpring(target.x, { damping: 18, stiffness: 220 });
-            y.value = withSpring(target.y, { damping: 18, stiffness: 220 });
-          }
-          scheduleOnRN(onDrop, index, isClose);
+        .onEnd((_event, success) => {
+          if (!success || activeDrag.get() !== index) return;
+          const next = snapGroup(pieces.get(), index, geometry, bounds, snapDistance, edgesOnly);
+          pieces.set(next);
+          scheduleOnRN(onDrop, next);
+        })
+        .onFinalize((_event, success) => {
+          if (activeDrag.get() !== index) return;
+          const start = origin.get();
+          if (!success && start) pieces.set(start);
+          origin.set(null);
+          activeDrag.set(-1);
         }),
-    [
-      placed,
-      index,
-      target.x,
-      target.y,
-      snapDistance,
-      maxX,
-      maxY,
-      onDrop,
-      zCounter,
-      locked,
-      zIndex,
-      x,
-      y,
-      originX,
-      originY,
-      scale,
-    ],
+    [placed, pieces, index, geometry, edgesOnly, activeDrag, zCounter, origin, pointerDown, bounds, snapDistance, onDrop],
   );
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    zIndex: zIndex.value,
-    transform: [{ translateX: x.value }, { translateY: y.value }, { scale: scale.value }],
-    shadowOpacity: scale.value > 1 ? 0.4 : 0,
-  }));
+  const animatedStyle = useAnimatedStyle(() => {
+    const current = pieces.get();
+    const piece = current[index];
+    const dragging = activeDrag.get() >= 0 && current[activeDrag.get()].group === piece.group;
+    return {
+      display: isGroupVisible(current, index, geometry, edgesOnly) ? "flex" : "none",
+      zIndex: piece.zIndex,
+      transform: [{ translateX: piece.x }, { translateY: piece.y }],
+      shadowOpacity: dragging ? 0.4 : 0,
+    };
+  });
 
   return (
     <GestureDetector gesture={pan}>
       <Animated.View
         accessibilityLabel={`Piece row ${row + 1}, column ${col + 1}${placed ? ", placed" : ""}`}
-        style={[styles.piece, { width: pieceSize, height: pieceSize }, placed && styles.placed, animatedStyle]}
+        style={[
+          styles.piece,
+          { left: -shape.left, top: -shape.top, width: shape.width, height: shape.height },
+          placed && styles.placed,
+          animatedStyle,
+        ]}
       >
         <View style={styles.imageClip}>
-          <Image
-            source={{ uri: imageUri }}
-            contentFit="cover"
-            cachePolicy="memory-disk"
-            style={{
-              position: "absolute",
-              width: boardSize,
-              height: boardSize,
-              left: -col * pieceSize,
-              top: -row * pieceSize,
-            }}
-          />
+          <Svg width={shape.width} height={shape.height} viewBox={`0 0 ${shape.width} ${shape.height}`}>
+            <Defs>
+              <ClipPath id={clipId}>
+                <Path d={shape.path} />
+              </ClipPath>
+            </Defs>
+            <SvgImage
+              href={{ uri: imageUri }}
+              x={shape.left - col * pieceSize}
+              y={shape.top - row * pieceSize}
+              width={boardSize}
+              height={boardSize}
+              preserveAspectRatio="xMidYMid slice"
+              clipPath={`url(#${clipId})`}
+            />
+            <Path
+              d={shape.path}
+              fill="none"
+              stroke={placed ? "rgba(15,23,42,0.2)" : "rgba(255,255,255,0.7)"}
+              strokeWidth={placed ? 0.5 : 1}
+              strokeLinejoin="round"
+            />
+          </Svg>
         </View>
-        {!placed && <View style={styles.edge} />}
       </Animated.View>
     </GestureDetector>
   );
@@ -139,28 +150,11 @@ export const PuzzlePiece = memo(function PuzzlePiece({
 const styles = StyleSheet.create({
   piece: {
     position: "absolute",
-    left: 0,
-    top: 0,
-    overflow: "hidden",
-    borderRadius: 4,
     shadowColor: "#000",
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
     cursor: "pointer",
   },
-  placed: {
-    borderRadius: 0,
-    cursor: "auto",
-  },
-  imageClip: {
-    ...StyleSheet.absoluteFill,
-    pointerEvents: "none",
-  },
-  edge: {
-    ...StyleSheet.absoluteFill,
-    pointerEvents: "none",
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.6)",
-  },
+  placed: { cursor: "auto" },
+  imageClip: { ...StyleSheet.absoluteFill, pointerEvents: "none" },
 });

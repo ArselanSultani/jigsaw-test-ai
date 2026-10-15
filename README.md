@@ -2,6 +2,17 @@
 
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
+## Saving and resuming puzzles
+
+Progress is saved automatically on this device after each move and when changing
+the guide or edge filter. Use **Menu**, then select a puzzle under **Continue a
+puzzle** to resume. Saves survive page refreshes and app restarts, including loose
+piece positions and connected groups. Each image and difficulty has its own save.
+
+**Restart** replaces progress for the current puzzle only. Saves are local, not
+synced between devices; clearing browser/app storage removes them. If saving
+fails, the app displays a warning with a retry button.
+
 ## Get started
 
 1. Install dependencies

@@ -16,10 +16,10 @@ export const PUZZLE_IMAGES: PuzzleImage[] = [
 ];
 
 export const DIFFICULTIES = [
-  { size: 3, label: "Easy" },
-  { size: 4, label: "Medium" },
-  { size: 5, label: "Hard" },
-  { size: 6, label: "Expert" },
+  { size: 6, label: "Easy" },
+  { size: 8, label: "Medium" },
+  { size: 10, label: "Hard" },
+  { size: 12, label: "Expert" },
 ] as const;
 
 export const colors = {
