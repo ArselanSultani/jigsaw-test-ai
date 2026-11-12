@@ -16,6 +16,17 @@ fails, the app displays a warning with a retry button.
 New puzzles use the bundled images in `assets/images/puzzle`. Older saved puzzles
 keep their original Picsum images and still need access to that service.
 
+## Fullscreen play
+
+Starting or resuming a puzzle requests browser fullscreen. Tap **Controls** to
+show the game menu, guide, edge filter, restart, and fullscreen controls. You can
+also enter fullscreen from there when opening a direct puzzle link. Returning to
+the menu exits fullscreen if the game entered it.
+
+Some browsers, including certain Safari versions, do not support fullscreen for
+web pages or may refuse the request. The game still hides its own controls in
+those browsers; their address bar may remain visible.
+
 ## Get started
 
 1. Install dependencies

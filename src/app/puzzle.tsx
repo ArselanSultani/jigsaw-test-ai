@@ -1,13 +1,14 @@
-import { router, Stack, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { PuzzleBoard } from "@/components/puzzle-board";
 import { ALL_PUZZLE_IMAGES, colors, DIFFICULTIES, PUZZLE_IMAGES } from "@/constants/puzzles";
 import { formatTime } from "@/utils/format-time";
 import { isEdgePiece } from "@/utils/is-edge-piece";
 import { usePuzzleProgress } from "@/components/puzzle-progress-provider";
+import { useFullscreen } from "@/components/fullscreen-provider";
 import { newPuzzleProgress, puzzleKey, type PuzzleProgress, type SavedPieces } from "@/utils/puzzle-progress";
 
 export default function PuzzleScreen() {
@@ -16,7 +17,10 @@ export default function PuzzleScreen() {
   const parsedSize = Number(params.size);
   const size = DIFFICULTIES.some((d) => d.size === parsedSize) ? parsedSize : DIFFICULTIES[0].size;
   const { puzzles, ensurePuzzle } = usePuzzleProgress();
+  const { exit } = useFullscreen();
   const key = puzzleKey(image.id, size);
+
+  useFocusEffect(useCallback(() => () => exit(true), [exit]));
 
   useEffect(() => {
     ensurePuzzle(image.id, size);
@@ -29,6 +33,9 @@ export default function PuzzleScreen() {
 
 function PuzzleGame({ progress }: { progress: PuzzleProgress }) {
   const { updatePuzzle } = usePuzzleProgress();
+  const { isFullscreen, message, enter, exit } = useFullscreen();
+  const [controlsOpen, setControlsOpen] = useState(false);
+  const insets = useSafeAreaInsets();
   const { imageId, size, seed, moves, showPreview, showEdgesOnly, startedAt, finishedAt, snapshot } = progress;
   const image = ALL_PUZZLE_IMAGES.find((candidate) => candidate.id === imageId) ?? PUZZLE_IMAGES[0];
   const key = puzzleKey(imageId, size);
@@ -58,30 +65,7 @@ function PuzzleGame({ progress }: { progress: PuzzleProgress }) {
   );
 
   return (
-    <SafeAreaView style={styles.screen} edges={["bottom", "left", "right"]}>
-      <Stack.Screen options={{ title: image.title }} />
-      <View style={styles.toolbar}>
-        <View style={styles.stats}>
-          <Stat label="Placed" value={`${placedCount}/${total}`} />
-        </View>
-        <View style={styles.actions}>
-          <ToolbarButton label="Menu" onPress={() => router.replace("/")} />
-          {hasUnplacedEdges && (
-            <ToolbarButton
-              label={edgesOnly ? "Show all pieces" : "Edges only"}
-              onPress={() => updatePuzzle(key, (previous) => ({ ...previous, showEdgesOnly: !previous.showEdgesOnly }))}
-              selected={edgesOnly}
-              primary={edgesOnly}
-            />
-          )}
-          <ToolbarButton
-            label={showPreview ? "Hide guide" : "Show guide"}
-            onPress={() => updatePuzzle(key, (previous) => ({ ...previous, showPreview: !previous.showPreview }))}
-          />
-          <ToolbarButton label="Restart" onPress={restart} />
-        </View>
-      </View>
-
+    <SafeAreaView style={styles.screen} edges={["top", "bottom", "left", "right"]}>
       <PuzzleBoard
         key={`${image.id}-${size}-${seed}-${startedAt}`}
         imageSource={image.source}
@@ -93,6 +77,44 @@ function PuzzleGame({ progress }: { progress: PuzzleProgress }) {
         onDrop={onDrop}
         initialSnapshot={snapshot}
       />
+
+      <View pointerEvents="box-none" style={[styles.controls, { top: insets.top + 12, right: insets.right + 12 }]}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={controlsOpen ? "Hide game controls" : "Show game controls"}
+          accessibilityState={{ expanded: controlsOpen }}
+          onPress={() => setControlsOpen((open) => !open)}
+          style={[styles.button, styles.controlsToggle]}
+        >
+          <Text style={styles.buttonText}>{controlsOpen ? "Hide controls" : "Controls"}</Text>
+        </Pressable>
+        {controlsOpen && (
+          <ScrollView style={styles.toolbar} contentContainerStyle={styles.toolbarContent}>
+            <Text style={styles.puzzleTitle}>{image.title}</Text>
+            <Stat label="Placed" value={`${placedCount}/${total}`} />
+            <View style={styles.actions}>
+              <ToolbarButton label="Menu" onPress={() => router.replace("/")} />
+              {hasUnplacedEdges && (
+                <ToolbarButton
+                  label={edgesOnly ? "Show all pieces" : "Edges only"}
+                  onPress={() => updatePuzzle(key, (previous) => ({ ...previous, showEdgesOnly: !previous.showEdgesOnly }))}
+                  selected={edgesOnly}
+                  primary={edgesOnly}
+                />
+              )}
+              <ToolbarButton
+                label={showPreview ? "Hide guide" : "Show guide"}
+                onPress={() => updatePuzzle(key, (previous) => ({ ...previous, showPreview: !previous.showPreview }))}
+              />
+              <ToolbarButton label="Restart" onPress={restart} />
+              {Platform.OS === "web" && (
+                <ToolbarButton label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"} onPress={isFullscreen ? () => exit() : enter} />
+              )}
+            </View>
+            {message && <Text style={styles.fullscreenMessage} accessibilityRole="alert">{message}</Text>}
+          </ScrollView>
+        )}
+      </View>
 
       {finishedAt !== null && (
         <View style={styles.overlay}>
@@ -146,23 +168,27 @@ function ToolbarButton({
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
+  controls: { position: "absolute", maxHeight: "80%", width: 260, alignItems: "flex-end" },
+  controlsToggle: { minHeight: 44, justifyContent: "center" },
   toolbar: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    alignSelf: "stretch",
+    marginTop: 8,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    flexShrink: 1,
   },
-  stats: { flexDirection: "row", gap: 20 },
+  toolbarContent: { padding: 12, gap: 12 },
+  puzzleTitle: { color: colors.text, fontSize: 16, fontWeight: "700" },
+  fullscreenMessage: { color: colors.muted, fontSize: 14 },
   statLabel: { color: colors.muted, fontSize: 12 },
   statValue: { color: colors.text, fontSize: 18, fontWeight: "700", fontVariant: ["tabular-nums"] },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   button: {
-    paddingVertical: 8,
+    minHeight: 44,
+    justifyContent: "center",
+    paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 8,
     borderWidth: 1,

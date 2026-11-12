@@ -5,17 +5,20 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { ALL_PUZZLE_IMAGES, colors, DIFFICULTIES, PUZZLE_IMAGES } from "@/constants/puzzles";
 import { usePuzzleProgress } from "@/components/puzzle-progress-provider";
+import { useFullscreen } from "@/components/fullscreen-provider";
 import { puzzleKey } from "@/utils/puzzle-progress";
 
 export default function Index() {
   const [imageId, setImageId] = useState(PUZZLE_IMAGES[0].id);
   const [size, setSize] = useState<number>(DIFFICULTIES[0].size);
   const { puzzles } = usePuzzleProgress();
+  const { enter } = useFullscreen();
   const inProgress = Object.values(puzzles).filter((puzzle) => puzzle.finishedAt === null);
   const selectedSave = puzzles[puzzleKey(imageId, size)];
 
-  const start = () => {
-    router.push({ pathname: "/puzzle", params: { id: imageId, size: String(size) } });
+  const start = (id: string, puzzleSize: number) => {
+    enter();
+    router.push({ pathname: "/puzzle", params: { id, size: String(puzzleSize) } });
   };
 
   return (
@@ -27,10 +30,7 @@ export default function Index() {
             <Pressable
               key={puzzleKey(puzzle.imageId, puzzle.size)}
               accessibilityRole="button"
-              onPress={() => router.push({
-                pathname: "/puzzle",
-                params: { id: puzzle.imageId, size: String(puzzle.size) },
-              })}
+              onPress={() => start(puzzle.imageId, puzzle.size)}
               style={styles.resumeCard}
             >
               <Text style={styles.thumbLabel}>
@@ -84,7 +84,7 @@ export default function Index() {
         })}
       </View>
 
-      <Pressable accessibilityRole="button" onPress={start} style={styles.startButton}>
+      <Pressable accessibilityRole="button" onPress={() => start(imageId, size)} style={styles.startButton}>
         <Text style={styles.startText}>{selectedSave ? "Continue puzzle" : "Start puzzle"}</Text>
       </Pressable>
     </ScrollView>
