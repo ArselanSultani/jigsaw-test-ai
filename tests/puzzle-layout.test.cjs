@@ -19,7 +19,7 @@ function load(filename) {
 const { createPuzzleLayout } = load(path.resolve(__dirname, "../src/utils/puzzle-layout.ts"));
 
 test("solution is centered and all loose pieces start outside it, fully in bounds", () => {
-  for (const [width, height] of [[320, 480], [375, 650], [768, 900], [1280, 680], [1920, 1000]]) {
+  for (const [width, height] of [[150, 150], [320, 320], [320, 480], [375, 650], [768, 900], [1280, 680], [1920, 1000]]) {
     for (const size of [6, 8, 10, 12]) {
       for (const seed of [1, 42, 999999]) {
         const { board, boardSize, pieceSize, pieces } = createPuzzleLayout({ width, height }, size, seed);
@@ -40,8 +40,19 @@ test("solution is centered and all loose pieces start outside it, fully in bound
           assert.equal(target.x, board.x + col * pieceSize);
           assert.equal(target.y, board.y + row * pieceSize);
         }
-        assert.equal(sides.size, 4);
+        assert.ok(sides.size >= 2);
+        if (width === height) assert.equal(sides.size, 4);
       }
+    }
+  }
+});
+
+test("board grows by at least 10% on roomy landscape and portrait screens", () => {
+  for (const [width, height] of [[1920, 1000], [1280, 680], [375, 650], [650, 375]]) {
+    for (const size of [6, 8, 10, 12]) {
+      const oldPieceSize = Math.floor((Math.min(width, height) - 50) / (size + 3.12));
+      const layout = createPuzzleLayout({ width, height }, size, 42);
+      assert.ok(layout.pieceSize >= oldPieceSize * 1.1, `${width}x${height}, ${size}: ${layout.pieceSize} vs ${oldPieceSize}`);
     }
   }
 });

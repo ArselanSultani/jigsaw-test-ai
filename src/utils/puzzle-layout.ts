@@ -4,6 +4,8 @@ import { createPieceShape } from "./piece-shape";
 
 const PADDING = 12;
 const GAP = 12;
+const BOARD_SCALE = 1.15;
+const MAX_PIECE_FACTOR = 1.56;
 
 function seededRandom(seed: number) {
   let state = seed % 2147483647;
@@ -15,9 +17,16 @@ function seededRandom(seed: number) {
 }
 
 export function createPuzzleLayout({ width, height }: Bounds, size: number, seed: number) {
-  // Reserve a full tab-to-tab piece width on every side of the centered image.
-  const available = Math.min(width, height) - 2 * (PADDING + GAP + 1);
-  const pieceSize = Math.floor(available / (size + 3.12));
+  const shortSide = Math.min(width, height);
+  const longSide = Math.max(width, height);
+  const trayMargin = 2 * (PADDING + GAP + 1);
+  const originalSize = Math.floor((shortSide - trayMargin) / (size + 2 * MAX_PIECE_FACTOR));
+  // Use extra space along the longer axis for trays when the board grows.
+  const pieceSize = Math.floor(Math.min(
+    originalSize * BOARD_SCALE,
+    (shortSide - 2 * PADDING) / size,
+    (longSide - trayMargin) / (size + 2 * MAX_PIECE_FACTOR),
+  ));
   if (pieceSize < 1) return null;
   const boardSize = pieceSize * size;
   const board = { x: (width - boardSize) / 2, y: (height - boardSize) / 2 };
@@ -36,7 +45,10 @@ export function createPuzzleLayout({ width, height }: Bounds, size: number, seed
       height: height - board.y - boardSize - GAP - PADDING,
     },
     { x: PADDING, y: board.y, width: board.x - GAP - PADDING, height: boardSize },
-  ];
+  ].filter((tray) =>
+    tray.width >= pieceSize * MAX_PIECE_FACTOR + 2 &&
+    tray.height >= pieceSize * MAX_PIECE_FACTOR + 2,
+  );
   const random = seededRandom(seed);
   const pieces = Array.from({ length: size * size }, (_, index) => {
     const row = Math.floor(index / size);
