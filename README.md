@@ -36,6 +36,27 @@ In the output, you'll find options to open the app in a
 
 You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
+## Deploy to GitHub Pages
+
+The workflow in `.github/workflows/deploy-pages.yml` builds and deploys the site
+when changes are pushed to `main`. It can also be started manually from the
+repository's **Actions** tab.
+
+1. In GitHub, open **Settings → Pages** and set **Build and deployment → Source**
+   to **GitHub Actions**. The repository must be eligible for GitHub Pages; for
+   example, GitHub Free requires a public repository.
+2. Push the workflow and project changes to `main`, or run **Deploy GitHub Pages**
+   from the Actions tab after the workflow is on `main`.
+3. After the deployment succeeds, open
+   `https://arselansultani.github.io/jigsaw/` on the iPad in Safari.
+
+To build the same artifact locally, run `npm ci` followed by
+`npm run build:pages`. The output is in `dist/`. The build creates a directory
+index for the puzzle route so direct links and refreshes work on GitHub Pages.
+Expo's `experiments.baseUrl` is set to `/jigsaw`; change it if the repository
+name or hosting path changes. Saved puzzles are local to the browser and do not
+transfer from localhost or another URL.
+
 
 ### Other setup steps
 
