@@ -12,7 +12,7 @@ function load(filename) {
   });
   runInNewContext(outputText, {
     exports,
-    require: (name) => load(path.resolve(path.dirname(filename), `${name}.ts`)),
+    require: (name) => name.endsWith(".jpg") ? 1 : load(path.resolve(path.dirname(filename), `${name}.ts`)),
   });
   return exports;
 }
@@ -48,10 +48,10 @@ test("saves round-trip positions, connected groups, settings and counters", () =
 
 test("different images and difficulties have independent saves", () => {
   const saves = {};
-  for (const [id, size] of [["1015", 6], ["1015", 12], ["1025", 6]]) {
+  for (const [id, size] of [["1015", 6], ["1015", 12], ["1025", 6], ["casey-horner", 6]]) {
     saves[puzzleKey(id, size)] = newPuzzleProgress(id, size);
   }
-  assert.equal(Object.keys(decodePuzzleSaves(encodePuzzleSaves(saves))).length, 3);
+  assert.equal(Object.keys(decodePuzzleSaves(encodePuzzleSaves(saves))).length, 4);
 });
 
 test("restart replaces only the selected puzzle", () => {

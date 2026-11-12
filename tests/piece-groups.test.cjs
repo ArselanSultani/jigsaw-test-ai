@@ -8,7 +8,7 @@ function load(relativePath) {
   const exports = {};
   const source = readFileSync(require.resolve(relativePath), "utf8");
   const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } });
-  runInNewContext(outputText, { exports });
+  runInNewContext(outputText, { exports, require: () => 1 });
   return exports;
 }
 

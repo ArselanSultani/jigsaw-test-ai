@@ -10,7 +10,7 @@ import { type Bounds, type PieceGeometry, type PieceState, resizeGroups } from "
 import { type SavedPieces } from "@/utils/puzzle-progress";
 
 type Props = {
-  imageUri: string;
+  imageSource: number | string;
   size: number;
   seed: number;
   placed: boolean[];
@@ -20,7 +20,7 @@ type Props = {
   initialSnapshot: SavedPieces | null;
 };
 
-export function PuzzleBoard({ imageUri, size, seed, placed, showPreview, edgesOnly, onDrop, initialSnapshot }: Props) {
+export function PuzzleBoard({ imageSource, size, seed, placed, showPreview, edgesOnly, onDrop, initialSnapshot }: Props) {
   const [area, setArea] = useState({ width: 0, height: 0 });
   const [savedPieces, setSavedPieces] = useState<SavedPieces | null>(initialSnapshot);
 
@@ -50,7 +50,7 @@ export function PuzzleBoard({ imageUri, size, seed, placed, showPreview, edgesOn
             ]}
           >
             {showPreview && (
-              <Image source={{ uri: imageUri }} style={[StyleSheet.absoluteFill, styles.preview]} contentFit="cover" />
+              <Image source={imageSource} style={[StyleSheet.absoluteFill, styles.preview]} contentFit="cover" />
             )}
           </View>
           <PuzzlePieces
@@ -58,7 +58,7 @@ export function PuzzleBoard({ imageUri, size, seed, placed, showPreview, edgesOn
             geometry={layout.pieces}
             pieceSize={layout.pieceSize}
             boardSize={layout.boardSize}
-            imageUri={imageUri}
+            imageSource={imageSource}
             bounds={area}
             placed={placed}
             edgesOnly={edgesOnly}
@@ -82,7 +82,7 @@ function PuzzlePieces({
   placed: boolean[];
   pieceSize: number;
   boardSize: number;
-  imageUri: string;
+  imageSource: number | string;
   bounds: Bounds;
   edgesOnly: boolean;
   onDrop: (pieces: PieceState[], pieceSize: number) => void;

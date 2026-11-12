@@ -3,7 +3,7 @@ import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { colors, DIFFICULTIES, PUZZLE_IMAGES } from "@/constants/puzzles";
+import { ALL_PUZZLE_IMAGES, colors, DIFFICULTIES, PUZZLE_IMAGES } from "@/constants/puzzles";
 import { usePuzzleProgress } from "@/components/puzzle-progress-provider";
 import { puzzleKey } from "@/utils/puzzle-progress";
 
@@ -34,7 +34,7 @@ export default function Index() {
               style={styles.resumeCard}
             >
               <Text style={styles.thumbLabel}>
-                {PUZZLE_IMAGES.find((image) => image.id === puzzle.imageId)?.title} ·{" "}
+                {ALL_PUZZLE_IMAGES.find((image) => image.id === puzzle.imageId)?.title} ·{" "}
                 {DIFFICULTIES.find((level) => level.size === puzzle.size)?.label}
               </Text>
               <Text style={styles.resumeText}>
@@ -57,7 +57,7 @@ export default function Index() {
               onPress={() => setImageId(image.id)}
               style={[styles.thumb, selected && styles.thumbSelected]}
             >
-              <Image source={{ uri: image.uri }} style={styles.thumbImage} contentFit="cover" transition={200} />
+              <Image source={image.source} style={styles.thumbImage} contentFit="cover" transition={200} />
               <Text style={styles.thumbLabel}>{image.title}</Text>
             </Pressable>
           );

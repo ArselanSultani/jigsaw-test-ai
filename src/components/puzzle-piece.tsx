@@ -19,7 +19,7 @@ type Props = {
   index: number;
   pieceSize: number;
   boardSize: number;
-  imageUri: string;
+  imageSource: number | string;
   geometry: PieceGeometry[];
   bounds: Bounds;
   placed: boolean;
@@ -34,7 +34,7 @@ export const PuzzlePiece = memo(function PuzzlePiece({
   index,
   pieceSize,
   boardSize,
-  imageUri,
+  imageSource,
   geometry,
   bounds,
   placed,
@@ -125,7 +125,7 @@ export const PuzzlePiece = memo(function PuzzlePiece({
               </ClipPath>
             </Defs>
             <SvgImage
-              href={{ uri: imageUri }}
+              href={imageSource}
               x={shape.left - col * pieceSize}
               y={shape.top - row * pieceSize}
               width={boardSize}

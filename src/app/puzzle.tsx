@@ -4,7 +4,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-nati
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { PuzzleBoard } from "@/components/puzzle-board";
-import { colors, DIFFICULTIES, PUZZLE_IMAGES } from "@/constants/puzzles";
+import { ALL_PUZZLE_IMAGES, colors, DIFFICULTIES, PUZZLE_IMAGES } from "@/constants/puzzles";
 import { formatTime } from "@/utils/format-time";
 import { isEdgePiece } from "@/utils/is-edge-piece";
 import { usePuzzleProgress } from "@/components/puzzle-progress-provider";
@@ -12,7 +12,7 @@ import { newPuzzleProgress, puzzleKey, type PuzzleProgress, type SavedPieces } f
 
 export default function PuzzleScreen() {
   const params = useLocalSearchParams<{ id?: string; size?: string }>();
-  const image = PUZZLE_IMAGES.find((i) => i.id === params.id) ?? PUZZLE_IMAGES[0];
+  const image = ALL_PUZZLE_IMAGES.find((i) => i.id === params.id) ?? PUZZLE_IMAGES[0];
   const parsedSize = Number(params.size);
   const size = DIFFICULTIES.some((d) => d.size === parsedSize) ? parsedSize : DIFFICULTIES[0].size;
   const { puzzles, ensurePuzzle } = usePuzzleProgress();
@@ -30,7 +30,7 @@ export default function PuzzleScreen() {
 function PuzzleGame({ progress }: { progress: PuzzleProgress }) {
   const { updatePuzzle } = usePuzzleProgress();
   const { imageId, size, seed, moves, showPreview, showEdgesOnly, startedAt, finishedAt, snapshot } = progress;
-  const image = PUZZLE_IMAGES.find((candidate) => candidate.id === imageId) ?? PUZZLE_IMAGES[0];
+  const image = ALL_PUZZLE_IMAGES.find((candidate) => candidate.id === imageId) ?? PUZZLE_IMAGES[0];
   const key = puzzleKey(imageId, size);
   const total = size * size;
   const placed = snapshot?.pieces.map((piece) => piece.placed) ?? Array<boolean>(total).fill(false);
@@ -84,7 +84,7 @@ function PuzzleGame({ progress }: { progress: PuzzleProgress }) {
 
       <PuzzleBoard
         key={`${image.id}-${size}-${seed}-${startedAt}`}
-        imageUri={image.uri}
+        imageSource={image.source}
         size={size}
         seed={seed}
         placed={placed}

@@ -1,4 +1,4 @@
-import { DIFFICULTIES, PUZZLE_IMAGES } from "../constants/puzzles";
+import { ALL_PUZZLE_IMAGES, DIFFICULTIES } from "../constants/puzzles";
 import { type PieceState } from "./piece-groups";
 
 export type SavedPieces = { pieces: PieceState[]; pieceSize: number };
@@ -38,7 +38,7 @@ const nonnegative = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value) && value >= 0;
 
 function isProgress(value: unknown): value is PuzzleProgress {
-  if (!record(value) || !PUZZLE_IMAGES.some((image) => image.id === value.imageId) ||
+  if (!record(value) || !ALL_PUZZLE_IMAGES.some((image) => image.id === value.imageId) ||
     !DIFFICULTIES.some((level) => level.size === value.size) ||
     !nonnegative(value.seed) || !Number.isInteger(value.seed) ||
     !nonnegative(value.moves) || !Number.isInteger(value.moves) ||

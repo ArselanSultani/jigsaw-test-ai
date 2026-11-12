@@ -13,6 +13,9 @@ piece positions and connected groups. Each image and difficulty has its own save
 synced between devices; clearing browser/app storage removes them. If saving
 fails, the app displays a warning with a retry button.
 
+New puzzles use the bundled images in `assets/images/puzzle`. Older saved puzzles
+keep their original Picsum images and still need access to that service.
+
 ## Get started
 
 1. Install dependencies
